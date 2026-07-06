@@ -54,25 +54,34 @@ connected_clients: set[WebSocket] = set()
 
 
 @app.websocket("/ws/sessions/{session_id}")
-async def ws_session(websocket: WebSocket, session_id: str):
+async def ws_session(websocket: WebSocket, session_id: str, api_key: str = ""):
+    if api_key != API_KEY:
+        await websocket.close(code=4001)
+        return
     await websocket.accept()
     connected_clients.add(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            # Echo back for now — real implementation will stream from sessions DB
+            await websocket.receive_text()
             await websocket.send_text(json.dumps({"type": "ack", "session_id": session_id}))
     except WebSocketDisconnect:
+        connected_clients.discard(websocket)
+    finally:
         connected_clients.discard(websocket)
 
 
 @app.websocket("/ws/agent-status")
-async def ws_agent_status(websocket: WebSocket):
+async def ws_agent_status(websocket: WebSocket, api_key: str = ""):
+    if api_key != API_KEY:
+        await websocket.close(code=4001)
+        return
     await websocket.accept()
     connected_clients.add(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
+            await websocket.receive_text()
             await websocket.send_text(json.dumps({"type": "status", "agents": []}))
     except WebSocketDisconnect:
+        connected_clients.discard(websocket)
+    finally:
         connected_clients.discard(websocket)
