@@ -1,5 +1,4 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api/v1";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "hermes-dashboard-2026";
+const API_BASE = "/api/proxy";
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
@@ -15,11 +14,15 @@ export async function apiFetch<T = any>(path: string, options: FetchOptions = {}
   const res = await fetch(url.toString(), {
     ...init,
     headers: {
-      "X-API-Key": API_KEY,
       "Content-Type": "application/json",
       ...init.headers,
     },
   });
+
+  if (res.status === 401) {
+    window.location.href = "/login";
+    throw new Error("Session expired");
+  }
 
   if (!res.ok) {
     throw new Error(`API error: ${res.status} ${res.statusText}`);
@@ -28,7 +31,6 @@ export async function apiFetch<T = any>(path: string, options: FetchOptions = {}
   return res.json();
 }
 
-// Hook-friendly fetchers
 export const fetchers = {
   sessions: (limit = 50, offset = 0, q?: string) =>
     apiFetch("/sessions", { params: { limit: String(limit), offset: String(offset), ...(q ? { q } : {}) } }),
