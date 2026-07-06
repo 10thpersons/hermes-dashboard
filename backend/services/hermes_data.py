@@ -13,6 +13,17 @@ from config import (
 SESSIONS_DB = HERMES_HOME / "state.db"
 
 
+def _safe_path(base: Path, user_path: str) -> Path | None:
+    """Return resolved path only if it stays inside base. Prevents traversal."""
+    try:
+        resolved = (base / user_path).resolve()
+        base_resolved = base.resolve()
+        resolved.relative_to(base_resolved)
+        return resolved
+    except (ValueError, OSError):
+        return None
+
+
 def _get_db():
     """Get a read-only SQLite connection to the sessions database."""
     if not SESSIONS_DB.exists():
@@ -100,12 +111,12 @@ def toggle_cron_job(job_id: str, enabled: bool):
 
 # ── Knowledge ─────────────────────────────────────────────────────────────────
 
-def _read_markdown_dir(directory: Path) -> list[dict]:
-    """Read all .md files from a directory tree."""
+def _read_markdown_dir(directory: Path, max_files: int = 200) -> list[dict]:
+    """Read .md files from a directory tree, capped at max_files."""
     items = []
     if not directory.exists():
         return items
-    for md_file in directory.rglob("*.md"):
+    for md_file in sorted(directory.rglob("*.md"))[:max_files]:
         try:
             content = md_file.read_text(encoding="utf-8", errors="replace")
             items.append({
@@ -147,8 +158,8 @@ def get_souls():
 
 
 def get_skill_detail(skill_path: str):
-    full_path = SKILLS_DIR / skill_path
-    if not full_path.exists():
+    full_path = _safe_path(SKILLS_DIR, skill_path)
+    if not full_path or not full_path.exists():
         return None
     return full_path.read_text(encoding="utf-8", errors="replace")
 
@@ -199,7 +210,7 @@ def get_obsidian_tree(path: str = ""):
 
 
 def get_obsidian_file(file_path: str):
-    full_path = OBSIDIAN_VAULT / file_path
-    if not full_path.exists() or not full_path.is_file():
+    full_path = _safe_path(OBSIDIAN_VAULT, file_path)
+    if not full_path or not full_path.exists() or not full_path.is_file():
         return None
     return full_path.read_text(encoding="utf-8", errors="replace")
