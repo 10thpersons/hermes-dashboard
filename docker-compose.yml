@@ -9,6 +9,7 @@ services:
       - HERMES_HOME=/root/.hermes
       - OBSIDIAN_VAULT=/root/obsidian-vault
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}
     volumes:
       - /root/.hermes:/root/.hermes:ro
       - /root/obsidian-vault:/root/obsidian-vault:ro
@@ -25,8 +26,8 @@ services:
     container_name: hermes-dashboard-web
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=/api/v1
-      - NEXT_PUBLIC_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
+      - BACKEND_URL=http://backend:8000
+      - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
     ports:
       - "3001:3000"
     depends_on:
