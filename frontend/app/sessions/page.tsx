@@ -1,6 +1,7 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
 import { fetchers } from "@/lib/api";
+import { ErrorBanner } from "@/components/error-banner";
 import Link from "next/link";
 import { useState } from "react";
 import { Search } from "lucide-react";
@@ -10,7 +11,7 @@ export default function SessionsPage() {
   const [page, setPage] = useState(0);
   const limit = 30;
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["sessions", search, page],
     queryFn: () => fetchers.sessions(limit, page * limit, search || undefined),
   });
@@ -18,6 +19,8 @@ export default function SessionsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Sessions</h1>
+
+      {isError && <ErrorBanner message="Could not load sessions. Is the backend running?" />}
 
       <div className="relative max-w-md">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
