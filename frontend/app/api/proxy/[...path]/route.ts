@@ -10,7 +10,11 @@ function verifyToken(token: string): boolean {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return false;
   const expected = createHmac("sha256", SECRET).update(payload).digest("hex");
-  return sig === expected;
+  if (sig !== expected) return false;
+  const issuedAt = parseInt(payload, 10);
+  const maxAge = 60 * 60 * 24 * 30 * 1000;
+  if (Date.now() - issuedAt > maxAge) return false;
+  return true;
 }
 
 async function handler(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {

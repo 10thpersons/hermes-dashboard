@@ -11,7 +11,7 @@ services:
       - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}
     volumes:
-      - /root/.hermes:/root/.hermes:ro
+      - /root/.hermes:/root/.hermes
       - /root/obsidian-vault:/root/obsidian-vault:ro
     ports:
       - "8000:8000"

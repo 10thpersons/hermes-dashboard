@@ -62,9 +62,24 @@ export const fetchers = {
   systemHealth: () =>
     apiFetch("/system/health"),
 
+  providers: () =>
+    apiFetch("/providers"),
+
+  providerModels: () =>
+    apiFetch("/providers/models"),
+
   obsidianTree: (path = "") =>
     apiFetch("/obsidian/tree", { params: { path } }),
 
   obsidianFile: (path: string) =>
     apiFetch("/obsidian/file", { params: { path } }),
+
+  usageSummary: () =>
+    apiFetch("/usage/summary"),
+
+  usageDaily: (days = 30) =>
+    apiFetch("/usage/daily", { params: { days: String(days) } }),
+
+  usageByModel: () =>
+    apiFetch("/usage/by-model"),
 };

@@ -1,25 +1,32 @@
 # Dependencies
 node_modules/
-backend/venv/
-
-# Build artifacts
-.next/
 __pycache__/
 *.pyc
-*.pyo
+venv/
+.venv/
+
+# Next.js build output
+.next/
+out/
 
 # Environment
 .env
 .env.local
+.env.*.local
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
 
 # Docker
 docker-compose.override.yml

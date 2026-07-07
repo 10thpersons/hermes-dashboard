@@ -9,6 +9,7 @@ import {
   Clock,
   Settings,
   Activity,
+  BarChart3,
   Menu,
   X,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const NAV = [
   { href: "/sessions", label: "Sessions", icon: MessageSquare },
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/automation", label: "Automation", icon: Clock },
+  { href: "/usage", label: "Usage", icon: BarChart3 },
   { href: "/config", label: "Config", icon: Settings },
   { href: "/system", label: "System", icon: Activity },
 ];

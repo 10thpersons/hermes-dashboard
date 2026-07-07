@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 import json
 
 from config import API_KEY, ALLOWED_ORIGINS
-from routers import sessions, cron, knowledge, config_router, system, obsidian
+from routers import sessions, cron, knowledge, config_router, system, obsidian, usage, providers
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -42,6 +42,8 @@ app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["Knowledg
 app.include_router(config_router.router, prefix="/api/v1/config", tags=["Config"], dependencies=[Depends(verify_api_key)])
 app.include_router(system.router, prefix="/api/v1/system", tags=["System"], dependencies=[Depends(verify_api_key)])
 app.include_router(obsidian.router, prefix="/api/v1/obsidian", tags=["Obsidian"], dependencies=[Depends(verify_api_key)])
+app.include_router(usage.router, prefix="/api/v1/usage", tags=["Usage"], dependencies=[Depends(verify_api_key)])
+app.include_router(providers.router, prefix="/api/v1/providers", tags=["Providers"], dependencies=[Depends(verify_api_key)])
 
 
 @app.get("/health")

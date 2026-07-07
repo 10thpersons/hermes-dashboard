@@ -7,7 +7,12 @@ function verifyToken(token: string, secret: string): boolean {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return false;
   const expected = createHmac("sha256", secret).update(payload).digest("hex");
-  return sig === expected;
+  if (sig !== expected) return false;
+  // Check token age (max 30 days)
+  const issuedAt = parseInt(payload, 10);
+  const maxAge = 60 * 60 * 24 * 30 * 1000; // 30 days in ms
+  if (Date.now() - issuedAt > maxAge) return false;
+  return true;
 }
 
 export function middleware(req: NextRequest) {
