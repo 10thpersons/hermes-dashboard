@@ -44,6 +44,15 @@ export const fetchers = {
   toggleCron: (id: string, enabled: boolean) =>
     apiFetch(`/cron/${id}/toggle`, { method: "POST", body: JSON.stringify({ enabled }) }),
 
+  cronOutput: (id: string) =>
+    apiFetch(`/cron/${id}/output`),
+
+  cronOutputFile: (id: string, filename: string) =>
+    apiFetch(`/cron/${id}/output/${encodeURIComponent(filename)}`),
+
+  cronHistory: (id: string) =>
+    apiFetch(`/cron/${id}/history`),
+
   memory: () =>
     apiFetch("/knowledge/memory"),
 
