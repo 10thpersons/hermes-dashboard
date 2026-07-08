@@ -2,13 +2,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchers } from "@/lib/api";
 import { StatCard } from "@/components/stat-card";
-import { Activity, MessageSquare, Clock, HardDrive } from "lucide-react";
+import { Activity, MessageSquare, Clock, HardDrive, Coins, Cpu } from "lucide-react";
 import Link from "next/link";
 
 export default function OverviewPage() {
   const { data: health } = useQuery({ queryKey: ["health"], queryFn: fetchers.systemHealth });
   const { data: sessions } = useQuery({ queryKey: ["sessions"], queryFn: () => fetchers.sessions(5) });
   const { data: cron } = useQuery({ queryKey: ["cron"], queryFn: fetchers.cronJobs });
+  const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: fetchers.usageSummary });
 
   const disk = health?.disk;
   const services = health?.services || {};
@@ -22,6 +23,11 @@ export default function OverviewPage() {
         <StatCard icon={HardDrive} label="Disk" value={disk?.percent || "—"} sub={disk ? `${disk.used} / ${disk.total}` : undefined} />
         <StatCard icon={MessageSquare} label="Sessions" value={sessions?.total ?? "—"} />
         <StatCard icon={Clock} label="Cron Jobs" value={Array.isArray(cron) ? cron.length : "—"} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Coins} label="Cost (30d)" value={usage?.total_cost != null ? `$${Number(usage.total_cost).toFixed(2)}` : "—"} sub={usage?.total_requests ? `${usage.total_requests} requests` : undefined} />
+        <StatCard icon={Cpu} label="Tokens (30d)" value={usage?.total_tokens != null ? Number(usage.total_tokens).toLocaleString() : "—"} sub={usage?.total_completion_tokens != null ? `${Number(usage.total_completion_tokens).toLocaleString()} out` : undefined} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
