@@ -21,9 +21,11 @@
 ## Task 1: Path Traversal Fix
 
 **Files:**
+
 - Modify: `backend/services/hermes_data.py`
 
 **Interfaces:**
+
 - `get_obsidian_file(file_path: str) -> str | None` — unchanged signature, now safe
 - `get_skill_detail(skill_path: str) -> str | None` — unchanged signature, now safe
 
@@ -80,9 +82,11 @@ git commit -m "fix: prevent path traversal in obsidian and skills file reads"
 ## Task 2: WebSocket Memory Leak + Authentication
 
 **Files:**
+
 - Modify: `backend/main.py`
 
 **Interfaces:**
+
 - `ws_session(websocket, session_id, api_key)` — now requires `api_key` query param
 - `ws_agent_status(websocket, api_key)` — now requires `api_key` query param
 
@@ -141,9 +145,10 @@ git commit -m "fix: add WebSocket auth and fix memory leak in connected_clients"
 ## Task 3: Add Knowledge Directory Size Limit
 
 **Files:**
+
 - Modify: `backend/services/hermes_data.py`
 
-- [ ] **Step 1: Update _read_markdown_dir to cap results**
+- [ ] **Step 1: Update \_read_markdown_dir to cap results**
 
 Find `_read_markdown_dir` and replace it with:
 
@@ -181,6 +186,7 @@ git commit -m "fix: cap knowledge directory reads at 200 files to prevent memory
 ## Task 4: Fix ALLOWED_ORIGINS in Docker Compose
 
 **Files:**
+
 - Modify: `docker-compose.yml`
 - Modify: `.env.example`
 
@@ -189,7 +195,7 @@ git commit -m "fix: cap knowledge directory reads at 200 files to prevent memory
 Open `docker-compose.yml`. In the `backend` service `environment` section, add:
 
 ```yaml
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}
+- ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8080}
 ```
 
 - [ ] **Step 2: Document in .env.example**
@@ -213,6 +219,7 @@ git commit -m "fix: pass ALLOWED_ORIGINS to backend container via docker-compose
 ## Task 5: Login Page + Remove Exposed API Key
 
 **Files:**
+
 - Create: `frontend/app/login/page.tsx`
 - Create: `frontend/app/api/login/route.ts`
 - Create: `frontend/app/api/proxy/[...path]/route.ts`
@@ -222,6 +229,7 @@ git commit -m "fix: pass ALLOWED_ORIGINS to backend container via docker-compose
 - Modify: `.env.example`
 
 **Interfaces:**
+
 - `POST /api/login` body: `{ password: string }` → sets httpOnly `session` cookie, returns `{ ok: true }`
 - `GET|POST|PUT|DELETE /api/proxy/[...path]` → proxies to backend with API key header (requires valid session cookie)
 - `apiFetch(path, options)` — same signature, now calls `/api/proxy/...` instead of backend directly
@@ -231,38 +239,38 @@ git commit -m "fix: pass ALLOWED_ORIGINS to backend container via docker-compose
 Create `frontend/app/api/login/route.ts`:
 
 ```typescript
-import { cookies } from "next/headers";
-import { createHmac } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { cookies } from 'next/headers';
+import { createHmac } from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
 
-const SECRET = process.env.DASHBOARD_API_KEY || "hermes-dashboard-2026";
+const SECRET = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
 
 function makeToken(): string {
   const payload = `${Date.now()}`;
-  const sig = createHmac("sha256", SECRET).update(payload).digest("hex");
+  const sig = createHmac('sha256', SECRET).update(payload).digest('hex');
   return `${payload}.${sig}`;
 }
 
 export function verifyToken(token: string): boolean {
-  const [payload, sig] = token.split(".");
+  const [payload, sig] = token.split('.');
   if (!payload || !sig) return false;
-  const expected = createHmac("sha256", SECRET).update(payload).digest("hex");
+  const expected = createHmac('sha256', SECRET).update(payload).digest('hex');
   return sig === expected;
 }
 
 export async function POST(req: NextRequest) {
   const { password } = await req.json();
   if (password !== SECRET) {
-    return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
   const token = makeToken();
   const cookieStore = await cookies();
-  cookieStore.set("session", token, {
+  cookieStore.set('session', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 30,
-    path: "/",
+    path: '/',
   });
   return NextResponse.json({ ok: true });
 }
@@ -273,40 +281,45 @@ export async function POST(req: NextRequest) {
 Create `frontend/app/api/proxy/[...path]/route.ts`:
 
 ```typescript
-import { cookies } from "next/headers";
-import { createHmac } from "crypto";
-import { NextRequest, NextResponse } from "next/server";
+import { cookies } from 'next/headers';
+import { createHmac } from 'crypto';
+import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND = process.env.BACKEND_URL || "http://backend:8000";
-const API_KEY = process.env.DASHBOARD_API_KEY || "hermes-dashboard-2026";
+const BACKEND = process.env.BACKEND_URL || 'http://backend:8000';
+const API_KEY = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
 const SECRET = API_KEY;
 
 function verifyToken(token: string): boolean {
-  const [payload, sig] = token.split(".");
+  const [payload, sig] = token.split('.');
   if (!payload || !sig) return false;
-  const expected = createHmac("sha256", SECRET).update(payload).digest("hex");
+  const expected = createHmac('sha256', SECRET).update(payload).digest('hex');
   return sig === expected;
 }
 
-async function handler(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+async function handler(
+  req: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
   const cookieStore = await cookies();
-  const session = cookieStore.get("session")?.value;
+  const session = cookieStore.get('session')?.value;
   if (!session || !verifyToken(session)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { path } = await params;
-  const targetPath = "/api/v1/" + path.join("/");
+  const targetPath = '/api/v1/' + path.join('/');
   const url = new URL(targetPath, BACKEND);
   req.nextUrl.searchParams.forEach((v, k) => url.searchParams.set(k, v));
 
-  const body = ["GET", "HEAD"].includes(req.method) ? undefined : await req.text();
+  const body = ['GET', 'HEAD'].includes(req.method)
+    ? undefined
+    : await req.text();
 
   const upstream = await fetch(url.toString(), {
     method: req.method,
     headers: {
-      "X-API-Key": API_KEY,
-      "Content-Type": "application/json",
+      'X-API-Key': API_KEY,
+      'Content-Type': 'application/json',
     },
     body,
   });
@@ -314,7 +327,10 @@ async function handler(req: NextRequest, { params }: { params: Promise<{ path: s
   const data = await upstream.text();
   return new NextResponse(data, {
     status: upstream.status,
-    headers: { "Content-Type": upstream.headers.get("Content-Type") || "application/json" },
+    headers: {
+      'Content-Type':
+        upstream.headers.get('Content-Type') || 'application/json',
+    },
   });
 }
 
@@ -329,34 +345,35 @@ export const DELETE = handler;
 Create `frontend/middleware.ts`:
 
 ```typescript
-import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { NextRequest, NextResponse } from 'next/server';
+import { createHmac } from 'crypto';
 
-const PUBLIC_PATHS = ["/login", "/api/login"];
+const PUBLIC_PATHS = ['/login', '/api/login'];
 
 function verifyToken(token: string, secret: string): boolean {
-  const [payload, sig] = token.split(".");
+  const [payload, sig] = token.split('.');
   if (!payload || !sig) return false;
-  const expected = createHmac("sha256", secret).update(payload).digest("hex");
+  const expected = createHmac('sha256', secret).update(payload).digest('hex');
   return sig === expected;
 }
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return NextResponse.next();
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p)))
+    return NextResponse.next();
 
-  const session = req.cookies.get("session")?.value;
-  const secret = process.env.DASHBOARD_API_KEY || "hermes-dashboard-2026";
+  const session = req.cookies.get('session')?.value;
+  const secret = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
 
   if (!session || !verifyToken(session, secret)) {
-    const loginUrl = new URL("/login", req.url);
+    const loginUrl = new URL('/login', req.url);
     return NextResponse.redirect(loginUrl);
   }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|health.json).*)"],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|health.json).*)'],
 };
 ```
 
@@ -437,13 +454,16 @@ export default function LoginPage() {
 Replace the entire content of `frontend/lib/api.ts` with:
 
 ```typescript
-const API_BASE = "/api/proxy";
+const API_BASE = '/api/proxy';
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
-export async function apiFetch<T = any>(path: string, options: FetchOptions = {}): Promise<T> {
+export async function apiFetch<T = any>(
+  path: string,
+  options: FetchOptions = {},
+): Promise<T> {
   const { params, ...init } = options;
   const url = new URL(`${API_BASE}${path}`, window.location.origin);
   if (params) {
@@ -453,14 +473,14 @@ export async function apiFetch<T = any>(path: string, options: FetchOptions = {}
   const res = await fetch(url.toString(), {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      'Content-Type': 'application/json',
       ...init.headers,
     },
   });
 
   if (res.status === 401) {
-    window.location.href = "/login";
-    throw new Error("Session expired");
+    window.location.href = '/login';
+    throw new Error('Session expired');
   }
 
   if (!res.ok) {
@@ -472,59 +492,64 @@ export async function apiFetch<T = any>(path: string, options: FetchOptions = {}
 
 export const fetchers = {
   sessions: (limit = 50, offset = 0, q?: string) =>
-    apiFetch("/sessions", { params: { limit: String(limit), offset: String(offset), ...(q ? { q } : {}) } }),
+    apiFetch('/sessions', {
+      params: {
+        limit: String(limit),
+        offset: String(offset),
+        ...(q ? { q } : {}),
+      },
+    }),
 
-  sessionDetail: (id: string) =>
-    apiFetch(`/sessions/${id}`),
+  sessionDetail: (id: string) => apiFetch(`/sessions/${id}`),
 
-  cronJobs: () =>
-    apiFetch("/cron"),
+  cronJobs: () => apiFetch('/cron'),
 
   toggleCron: (id: string, enabled: boolean) =>
-    apiFetch(`/cron/${id}/toggle`, { method: "POST", body: JSON.stringify({ enabled }) }),
+    apiFetch(`/cron/${id}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    }),
 
-  memory: () =>
-    apiFetch("/knowledge/memory"),
+  memory: () => apiFetch('/knowledge/memory'),
 
-  skills: () =>
-    apiFetch("/knowledge/skills"),
+  skills: () => apiFetch('/knowledge/skills'),
 
-  souls: () =>
-    apiFetch("/knowledge/souls"),
+  souls: () => apiFetch('/knowledge/souls'),
 
-  config: () =>
-    apiFetch("/config"),
+  config: () => apiFetch('/config'),
 
   updateConfig: (updates: Record<string, any>) =>
-    apiFetch("/config", { method: "PUT", body: JSON.stringify({ updates }) }),
+    apiFetch('/config', { method: 'PUT', body: JSON.stringify({ updates }) }),
 
-  systemHealth: () =>
-    apiFetch("/system/health"),
+  systemHealth: () => apiFetch('/system/health'),
 
-  obsidianTree: (path = "") =>
-    apiFetch("/obsidian/tree", { params: { path } }),
+  obsidianTree: (path = '') => apiFetch('/obsidian/tree', { params: { path } }),
 
   obsidianFile: (path: string) =>
-    apiFetch("/obsidian/file", { params: { path } }),
+    apiFetch('/obsidian/file', { params: { path } }),
 };
 ```
 
 - [ ] **Step 6: Update docker-compose.yml — add BACKEND_URL, remove NEXT_PUBLIC_API_KEY**
 
 In `docker-compose.yml` frontend service environment, replace:
+
 ```yaml
-      - NEXT_PUBLIC_API_URL=/api/v1
-      - NEXT_PUBLIC_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
+- NEXT_PUBLIC_API_URL=/api/v1
+- NEXT_PUBLIC_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
 ```
+
 with:
+
 ```yaml
-      - BACKEND_URL=http://backend:8000
-      - DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
+- BACKEND_URL=http://backend:8000
+- DASHBOARD_API_KEY=${DASHBOARD_API_KEY:-hermes-dashboard-2026}
 ```
 
 - [ ] **Step 7: Update .env.example**
 
 Replace content of `.env.example` with:
+
 ```
 DASHBOARD_API_KEY=change-me-to-something-secret
 ALLOWED_ORIGINS=http://yourdomain.com
@@ -543,6 +568,7 @@ git commit -m "feat: add login page and server-side proxy — API key no longer 
 ## Task 6: Remove Unused zustand Dependency
 
 **Files:**
+
 - Modify: `frontend/package.json`
 - Modify: `frontend/package-lock.json` (regenerated automatically)
 
@@ -565,6 +591,7 @@ git commit -m "chore: remove unused zustand dependency"
 ## Task 7: Mobile Sidebar
 
 **Files:**
+
 - Modify: `frontend/components/sidebar.tsx`
 - Modify: `frontend/app/layout.tsx`
 
@@ -679,6 +706,7 @@ git commit -m "feat: add mobile-responsive sidebar with slide-out drawer"
 ## Task 8: Error Display for Failed API Calls
 
 **Files:**
+
 - Create: `frontend/components/error-banner.tsx`
 - Modify: `frontend/app/page.tsx`
 - Modify: `frontend/app/sessions/page.tsx`
@@ -703,7 +731,7 @@ In `frontend/app/sessions/page.tsx`, add the import and use it. After the `useQu
 
 ```typescript
 const { data, isLoading, isError } = useQuery({
-  queryKey: ["sessions", search, page],
+  queryKey: ['sessions', search, page],
   queryFn: () => fetchers.sessions(limit, page * limit, search || undefined),
 });
 ```

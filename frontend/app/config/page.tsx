@@ -1,13 +1,16 @@
-"use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchers } from "@/lib/api";
-import { useState, useEffect } from "react";
-import { Save, Check } from "lucide-react";
+'use client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchers } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { Save, Check } from 'lucide-react';
 
 export default function ConfigPage() {
   const queryClient = useQueryClient();
-  const { data: config, isLoading } = useQuery({ queryKey: ["config"], queryFn: fetchers.config });
-  const [yaml, setYaml] = useState("");
+  const { data: config, isLoading } = useQuery({
+    queryKey: ['config'],
+    queryFn: fetchers.config,
+  });
+  const [yaml, setYaml] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -20,7 +23,7 @@ export default function ConfigPage() {
       return fetchers.updateConfig(parsed);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["config"] });
+      queryClient.invalidateQueries({ queryKey: ['config'] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
@@ -30,14 +33,16 @@ export default function ConfigPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Configuration</h1>
-        <span className="text-xs text-[var(--text-secondary)]">JSON format</span>
+        <span className="text-xs text-[var(--text-secondary)]">
+          JSON format
+        </span>
         <button
           onClick={() => saveMutation.mutate()}
           disabled={saveMutation.isPending}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50"
         >
           {saved ? <Check size={16} /> : <Save size={16} />}
-          {saved ? "Saved" : saveMutation.isPending ? "Saving..." : "Save"}
+          {saved ? 'Saved' : saveMutation.isPending ? 'Saving...' : 'Save'}
         </button>
       </div>
 

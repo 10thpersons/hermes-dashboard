@@ -24,11 +24,11 @@ open http://localhost:8080
 
 ## Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Nginx | 8080 | Reverse proxy (entry point) |
-| Frontend | 3001 | Next.js UI |
-| Backend | 8000 | FastAPI API |
+| Service  | Port | Description                 |
+| -------- | ---- | --------------------------- |
+| Nginx    | 8080 | Reverse proxy (entry point) |
+| Frontend | 3001 | Next.js UI                  |
+| Backend  | 8000 | FastAPI API                 |
 
 ## API Endpoints
 
@@ -49,6 +49,6 @@ All endpoints require `X-API-Key` header.
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
+| Variable          | Default               | Description            |
+| ----------------- | --------------------- | ---------------------- |
 | DASHBOARD_API_KEY | hermes-dashboard-2026 | API authentication key |
