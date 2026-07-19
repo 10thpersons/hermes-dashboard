@@ -54,6 +54,9 @@ export const fetchers = {
       body: JSON.stringify({ enabled }),
     }),
 
+  runCronNow: (id: string) =>
+    apiFetch(`/cron/${id}/run`, { method: 'POST' }),
+
   cronOutput: (id: string) => apiFetch(`/cron/${id}/output`),
 
   cronOutputFile: (id: string, filename: string) =>
@@ -68,6 +71,8 @@ export const fetchers = {
   souls: () => apiFetch('/knowledge/souls'),
 
   config: () => apiFetch('/config'),
+
+  configRaw: () => apiFetch('/config', { params: { raw: 'true' } }),
 
   updateConfig: (updates: Record<string, any>) =>
     apiFetch('/config', { method: 'PUT', body: JSON.stringify({ updates }) }),
@@ -89,4 +94,6 @@ export const fetchers = {
     apiFetch('/usage/daily', { params: { days: String(days) } }),
 
   usageByModel: () => apiFetch('/usage/by-model'),
+
+  usageCosts: () => apiFetch('/usage/costs'),
 };

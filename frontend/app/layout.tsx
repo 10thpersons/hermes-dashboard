@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Sidebar } from '@/components/sidebar';
 import { QueryProvider } from '@/components/query-provider';
+import { ToastProvider } from '@/components/toast';
 
 export const metadata: Metadata = {
   title: 'Hermes Dashboard',
@@ -14,16 +15,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html
-      lang="en"
-      className="dark"
-    >
+    <html lang="en">
+      <head>
+        {/* Apply saved theme before React hydrates to prevent flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('hermes-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
         <QueryProvider>
-          <div className="flex flex-col md:flex-row h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto p-6">{children}</main>
-          </div>
+          <ToastProvider>
+            <div className="flex flex-col md:flex-row h-screen overflow-hidden">
+              <Sidebar />
+              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+            </div>
+          </ToastProvider>
         </QueryProvider>
       </body>
     </html>

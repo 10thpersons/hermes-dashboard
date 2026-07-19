@@ -503,3 +503,159 @@ def get_usage_by_model():
         return result
     finally:
         conn.close()
+
+
+# ── Usage Cost Estimation ───────────────────────────────────────────────────
+
+# Rough pricing per 1K tokens (input, output) by model family
+MODEL_PRICING = {
+    # OpenAI models
+    "gpt-4o":         {"input_per_1k": 0.0025, "output_per_1k": 0.01},
+    "gpt-4o-mini":    {"input_per_1k": 0.00015, "output_per_1k": 0.0006},
+    "gpt-4-turbo":    {"input_per_1k": 0.01, "output_per_1k": 0.03},
+    "gpt-4":          {"input_per_1k": 0.03, "output_per_1k": 0.06},
+    "gpt-3.5-turbo":  {"input_per_1k": 0.0005, "output_per_1k": 0.0015},
+    "o1":             {"input_per_1k": 0.015, "output_per_1k": 0.06},
+    "o1-mini":        {"input_per_1k": 0.003, "output_per_1k": 0.012},
+    "o1-pro":         {"input_per_1k": 0.15, "output_per_1k": 0.60},
+    "o3-mini":        {"input_per_1k": 0.0011, "output_per_1k": 0.0044},
+    "o3":             {"input_per_1k": 0.01, "output_per_1k": 0.04},
+    "o4-mini":        {"input_per_1k": 0.0011, "output_per_1k": 0.0044},
+    # Anthropic models
+    "claude-3.5-sonnet": {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-3.5-haiku":  {"input_per_1k": 0.0008, "output_per_1k": 0.004},
+    "claude-3-opus":     {"input_per_1k": 0.015, "output_per_1k": 0.075},
+    "claude-3-sonnet":   {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-3-haiku":    {"input_per_1k": 0.00025, "output_per_1k": 0.00125},
+    "claude-sonnet-4":   {"input_per_1k": 0.003, "output_per_1k": 0.015},
+    "claude-haiku-4":    {"input_per_1k": 0.0008, "output_per_1k": 0.004},
+    # DeepSeek models
+    "deepseek-chat":    {"input_per_1k": 0.00014, "output_per_1k": 0.00028},
+    "deepseek-reasoner": {"input_per_1k": 0.00055, "output_per_1k": 0.00219},
+    # Google models
+    "gemini-2.0-flash": {"input_per_1k": 0.0001, "output_per_1k": 0.0004},
+    "gemini-1.5-pro":   {"input_per_1k": 0.00125, "output_per_1k": 0.005},
+    "gemini-1.5-flash": {"input_per_1k": 0.000075, "output_per_1k": 0.0003},
+    # Qwen models
+    "qwen-turbo":       {"input_per_1k": 0.00005, "output_per_1k": 0.0002},
+    "qwen-plus":        {"input_per_1k": 0.0004, "output_per_1k": 0.0012},
+    # MiMo models
+    "mimo-v2.5-pro":    {"input_per_1k": 0.0008, "output_per_1k": 0.0032},
+}
+
+# Default pricing for unknown models (conservative mid-range estimate)
+DEFAULT_PRICING = {"input_per_1k": 0.001, "output_per_1k": 0.004}
+
+
+def _match_model_pricing(model_name: str) -> dict:
+    """Find the best pricing match for a model name using substring matching."""
+    if not model_name:
+        return DEFAULT_PRICING
+    lower = model_name.lower()
+    # Exact match first
+    for key, pricing in MODEL_PRICING.items():
+        if key == lower:
+            return pricing
+    # Substring match
+    for key, pricing in MODEL_PRICING.items():
+        if key in lower or lower in key:
+            return pricing
+    return DEFAULT_PRICING
+
+
+def get_usage_with_costs():
+    """Calculate usage costs per model and per day.
+
+    Returns:
+        {
+            "by_model": [{"model": ..., "input_tokens": ..., "output_tokens": ...,
+                          "estimated_cost": ...}],
+            "by_day": [{"date": ..., "input_tokens": ..., "output_tokens": ...,
+                        "estimated_cost": ...}],
+            "total_cost": float,
+            "pricing_note": "Estimates based on published API pricing..."
+        }
+    """
+    conn = _get_db()
+    if not conn:
+        return {
+            "by_model": [],
+            "by_day": [],
+            "total_cost": 0.0,
+            "pricing_note": "No session data available",
+        }
+    try:
+        # By model
+        model_rows = conn.execute(
+            "SELECT "
+            "  COALESCE(NULLIF(model, ''), 'unknown') AS model, "
+            "  COUNT(*) AS sessions, "
+            "  COALESCE(SUM(input_tokens), 0) AS input_tokens, "
+            "  COALESCE(SUM(output_tokens), 0) AS output_tokens "
+            "FROM sessions GROUP BY COALESCE(NULLIF(model, ''), 'unknown') "
+            "ORDER BY SUM(input_tokens + output_tokens) DESC"
+        ).fetchall()
+
+        total_cost = 0.0
+        by_model = []
+        for r in model_rows:
+            d = dict(r)
+            pricing = _match_model_pricing(d["model"])
+            cost = (
+                (d["input_tokens"] / 1000.0) * pricing["input_per_1k"]
+                + (d["output_tokens"] / 1000.0) * pricing["output_per_1k"]
+            )
+            d["estimated_cost"] = round(cost, 4)
+            d["input_price_per_1k"] = pricing["input_per_1k"]
+            d["output_price_per_1k"] = pricing["output_per_1k"]
+            total_cost += cost
+            by_model.append(d)
+
+        # By day (last 30 days)
+        day_rows = conn.execute(
+            "SELECT "
+            "  date(started_at, 'unixepoch') AS date, "
+            "  COALESCE(SUM(input_tokens), 0) AS input_tokens, "
+            "  COALESCE(SUM(output_tokens), 0) AS output_tokens, "
+            "  COALESCE(NULLIF(model, ''), 'unknown') AS model "
+            "FROM sessions "
+            "WHERE started_at >= strftime('%s', 'now', '-30 days') "
+            "GROUP BY date(started_at, 'unixepoch'), COALESCE(NULLIF(model, ''), 'unknown') "
+            "ORDER BY date ASC"
+        ).fetchall()
+
+        # Aggregate costs per day (may have multiple models per day)
+        day_costs: dict[str, dict] = {}
+        for r in day_rows:
+            d = dict(r)
+            date = d["date"]
+            pricing = _match_model_pricing(d["model"])
+            cost = (
+                (d["input_tokens"] / 1000.0) * pricing["input_per_1k"]
+                + (d["output_tokens"] / 1000.0) * pricing["output_per_1k"]
+            )
+            if date not in day_costs:
+                day_costs[date] = {
+                    "date": date,
+                    "input_tokens": 0,
+                    "output_tokens": 0,
+                    "estimated_cost": 0.0,
+                }
+            day_costs[date]["input_tokens"] += d["input_tokens"]
+            day_costs[date]["output_tokens"] += d["output_tokens"]
+            day_costs[date]["estimated_cost"] += cost
+
+        by_day = []
+        for date in sorted(day_costs.keys()):
+            entry = day_costs[date]
+            entry["estimated_cost"] = round(entry["estimated_cost"], 4)
+            by_day.append(entry)
+
+        return {
+            "by_model": by_model,
+            "by_day": by_day,
+            "total_cost": round(total_cost, 4),
+            "pricing_note": "Estimates based on published API pricing. Actual costs may vary.",
+        }
+    finally:
+        conn.close()

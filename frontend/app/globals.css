@@ -16,6 +16,20 @@
   --error: #ef4444;
 }
 
+:root[data-theme="light"] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f4f4f5;
+  --border: #e4e4e7;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
@@ -42,4 +56,16 @@ body {
 pre,
 code {
   font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Toast slide-in animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }

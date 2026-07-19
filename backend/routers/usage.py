@@ -1,6 +1,11 @@
-"""Usage router - Token consumption analytics."""
+"""Usage router - Token consumption analytics with cost estimation."""
 from fastapi import APIRouter, Query
-from services.hermes_data import get_usage_summary, get_usage_daily, get_usage_by_model
+from services.hermes_data import (
+    get_usage_summary,
+    get_usage_daily,
+    get_usage_by_model,
+    get_usage_with_costs,
+)
 
 router = APIRouter()
 
@@ -21,3 +26,9 @@ async def daily(days: int = Query(30, ge=1, le=365)):
 async def by_model():
     """Token usage grouped by model."""
     return get_usage_by_model()
+
+
+@router.get("/costs")
+async def costs():
+    """Estimated costs by model and by day using published API pricing."""
+    return get_usage_with_costs()

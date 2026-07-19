@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard,
   MessageSquare,
@@ -13,6 +13,8 @@ import {
   BarChart3,
   Menu,
   X,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const NAV = [
@@ -25,6 +27,37 @@ const NAV = [
   { href: '/config', label: 'Config', icon: Settings },
   { href: '/system', label: 'System', icon: Activity },
 ];
+
+/** Theme toggle: reads/writes localStorage + data-theme on <html> */
+function ThemeToggle() {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+
+  // Sync from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('hermes-theme') as 'dark' | 'light' | null;
+    if (stored) {
+      setTheme(stored);
+      document.documentElement.setAttribute('data-theme', stored);
+    }
+  }, []);
+
+  const toggle = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('hermes-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  }, [theme]);
+
+  return (
+    <button
+      onClick={toggle}
+      className="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+      title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+    >
+      {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -82,6 +115,9 @@ export function Sidebar() {
               </button>
             </div>
             {navLinks}
+            <div className="p-3 border-t border-[var(--border)]">
+              <ThemeToggle />
+            </div>
             <div className="p-4 text-xs text-[var(--text-secondary)] border-t border-[var(--border)]">
               v1.0.0
             </div>
@@ -101,8 +137,9 @@ export function Sidebar() {
           </span>
         </div>
         {navLinks}
-        <div className="p-4 text-xs text-[var(--text-secondary)] border-t border-[var(--border)]">
-          v1.0.0
+        <div className="p-3 border-t border-[var(--border)] flex items-center justify-between">
+          <ThemeToggle />
+          <span className="text-xs text-[var(--text-secondary)]">v1.0.0</span>
         </div>
       </aside>
     </>

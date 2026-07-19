@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchers } from '@/lib/api';
 import { ErrorBanner } from '@/components/error-banner';
+import { SkeletonTable } from '@/components/skeleton';
 import Link from 'next/link';
 import { useState } from 'react';
 import { Search } from 'lucide-react';
@@ -41,70 +42,65 @@ export default function SessionsPage() {
         />
       </div>
 
-      <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-[var(--border)] text-left text-[var(--text-secondary)]">
-              <th className="px-4 py-3 font-medium">Session ID</th>
-              <th className="px-4 py-3 font-medium">Source</th>
-              <th className="px-4 py-3 font-medium">Model</th>
-              <th className="px-4 py-3 font-medium">Messages</th>
-              <th className="px-4 py-3 font-medium">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-4 py-8 text-center text-[var(--text-secondary)]"
-                >
-                  Loading...
-                </td>
+      {isLoading ? (
+        <SkeletonTable rows={8} cols={5} />
+      ) : (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[var(--border)] text-left text-[var(--text-secondary)]">
+                <th className="px-4 py-3 font-medium">Session ID</th>
+                <th className="px-4 py-3 font-medium">Source</th>
+                <th className="px-4 py-3 font-medium">Model</th>
+                <th className="px-4 py-3 font-medium">Messages</th>
+                <th className="px-4 py-3 font-medium">Date</th>
               </tr>
-            ) : data?.sessions?.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-4 py-8 text-center text-[var(--text-secondary)]"
-                >
-                  No sessions found
-                </td>
-              </tr>
-            ) : (
-              data?.sessions?.map((s: any) => (
-                <tr
-                  key={s.id}
-                  className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/sessions/${s.id}`}
-                      className="text-[var(--accent)] hover:underline font-mono text-xs"
-                    >
-                      {s.id.length > 24 ? s.id.slice(0, 24) + '...' : s.id}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)]">
-                    {s.source || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)] text-xs">
-                    {s.model || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)]">
-                    {s.message_count ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)]">
-                    {s.started_at
-                      ? new Date(s.started_at * 1000).toLocaleDateString()
-                      : '—'}
+            </thead>
+            <tbody>
+              {data?.sessions?.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-4 py-8 text-center text-[var(--text-secondary)]"
+                  >
+                    No sessions found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                data?.sessions?.map((s: any) => (
+                  <tr
+                    key={s.id}
+                    className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/sessions/${s.id}`}
+                        className="text-[var(--accent)] hover:underline font-mono text-xs"
+                      >
+                        {s.id.length > 24 ? s.id.slice(0, 24) + '...' : s.id}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
+                      {s.source || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)] text-xs">
+                      {s.model || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
+                      {s.message_count ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">
+                      {s.started_at
+                        ? new Date(s.started_at * 1000).toLocaleDateString()
+                        : '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-[var(--text-secondary)]">
