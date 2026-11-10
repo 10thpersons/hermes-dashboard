@@ -3,6 +3,8 @@ Reads from Hermes agent data stores: SQLite sessions (state.db), cron JSON, memo
 """
 import sqlite3
 import json
+import os
+import re
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -100,12 +102,22 @@ def _scan_cron_output(job_id: str) -> dict:
     Returns {files: [...sorted oldest->newest by mtime], latest: path|None, count: int}.
     """
     result = {"files": [], "latest": None, "count": 0}
+    if (
+        not isinstance(job_id, str)
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", job_id) is None
+        or ".." in job_id
+        or os.sep in job_id
+        or (os.altsep is not None and os.altsep in job_id)
+    ):
+        return result
     if not CRON_OUTPUT_DIR.exists():
         return result
 
     matches: list[Path] = []
     # Per-job subdirectory (newer format)
     job_dir = CRON_OUTPUT_DIR / job_id
+    if _safe_path(CRON_OUTPUT_DIR, job_id) is None:
+        return result
     if job_dir.is_dir():
         for f in job_dir.iterdir():
             if f.is_file() and not f.name.startswith(".") and f.suffix in (".txt", ".md"):
@@ -369,16 +381,19 @@ def _deep_merge(base: dict, override: dict):
 # ── Obsidian ──────────────────────────────────────────────────────────────────
 
 def get_obsidian_tree(path: str = ""):
-    target = OBSIDIAN_VAULT / path if path else OBSIDIAN_VAULT
-    if not target.exists():
+    target = _safe_path(OBSIDIAN_VAULT, path)
+    if target is None or not target.exists():
         return []
+    vault_base = OBSIDIAN_VAULT.resolve()
     items = []
     for item in sorted(target.iterdir()):
         if item.name.startswith("."):
             continue
+        if _safe_path(vault_base, str(item)) is None:
+            continue
         items.append({
             "name": item.name,
-            "path": str(item.relative_to(OBSIDIAN_VAULT)),
+            "path": str(item.relative_to(vault_base)),
             "type": "directory" if item.is_dir() else "file",
             "size": item.stat().st_size if item.is_file() else None,
         })
