@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import STATE
+from .draft_ids import ensure_draft_ids
 
 MYT = timezone(timedelta(hours=8))
 STATE_FILE = STATE / "state.json"
@@ -31,6 +32,8 @@ class State:
     def __init__(self, path: Path | None = None):
         self.path = path or STATE_FILE
         self.data: dict[str, Any] = self._load()
+        if ensure_draft_ids(self.data):
+            self.save()
 
     def _load(self) -> dict[str, Any]:
         if self.path.exists():
@@ -92,7 +95,10 @@ class State:
 
     # --------------------------------------------------------------- drafts
     def add_draft(self, record: dict[str, Any]) -> None:
+        if "id" in record:
+            raise ValueError("New drafts must not supply an identity")
         self.data.setdefault("drafts", []).append(record)
+        ensure_draft_ids(self.data)
         self.data["drafts"] = self.data["drafts"][-100:]
 
     def add_post(self, record: dict[str, Any]) -> None:

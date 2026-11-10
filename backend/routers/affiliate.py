@@ -17,7 +17,9 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictStr, Field
+
+from draft_ids import ensure_draft_ids, pending_draft
 
 router = APIRouter()
 
@@ -73,6 +75,24 @@ def _save_state(state: dict[str, Any]) -> None:
     tmp = STATE_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=1, ensure_ascii=False))
     tmp.replace(STATE_FILE)
+
+
+def _draft_state() -> dict[str, Any]:
+    state = _load_state()
+    try:
+        changed = ensure_draft_ids(state)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=409, detail="Invalid draft identities")
+    if changed:
+        _save_state(state)  # Persist legacy identities before exposing them to callers.
+    return state
+
+
+def _pending(state: dict[str, Any], identity: str) -> dict[str, Any]:
+    try:
+        return pending_draft(state, identity)
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Unknown or stale draft ID")
 
 
 # --------------------------------------------------------------------- health
@@ -238,8 +258,8 @@ print(json.dumps([{{
 # --------------------------------------------------------------------- drafts
 @router.get("/drafts")
 async def list_drafts():
-    """All drafts, pending first."""
-    state = _load_state()
+    """All drafts, pending first, with persisted immutable identities."""
+    state = _draft_state()
     drafts = state.get("drafts", [])
     drafts.sort(key=lambda d: (bool(d.get("published")), -float(d.get("score", 0))))
     return drafts
@@ -260,7 +280,7 @@ else:
     drafts = p.build_drafts(sel)
     staged = p.stage(drafts)
     print(json.dumps({{'staged': len(staged), 'drafts': [
-        {{'text': d['text'], 'score': d['score'], 'flags': d['flags'],
+        {{'id': d['id'], 'text': d['text'], 'score': d['score'], 'flags': d['flags'],
           'ok': d['ok'], 'product_name': d['product_name'],
           'archetype': d['archetype'], 'topic': d['topic'],
           'link': d['link'], 'sub_ids': d['sub_ids']}}
@@ -282,23 +302,15 @@ else:
 
 
 class PublishBody(BaseModel):
-    draft_index: int
+    draft_id: StrictStr = Field(..., min_length=1)
     override: bool = False
 
 
 @router.post("/publish")
 async def publish(body: PublishBody):
     """Publish one staged draft to Threads. Requires an explicit call."""
-    state = _load_state()
-    pending = [d for d in state.get("drafts", []) if not d.get("published")]
-    if not pending:
-        raise HTTPException(status_code=404, detail="No pending drafts")
-    if body.draft_index < 0 or body.draft_index >= len(pending):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Draft index out of range (0-{len(pending) - 1})",
-        )
-    draft = pending[body.draft_index]
+    state = _draft_state()
+    draft = _pending(state, body.draft_id)
     if draft.get("flags") and not body.override:
         raise HTTPException(
             status_code=422,
@@ -309,26 +321,39 @@ async def publish(body: PublishBody):
     script = """
 import json, sys
 from bot.state import State
-from bot.threads_api import ThreadsAPI
+from bot.draft_ids import pending_draft
 from bot.writer import Draft
 from bot.pipeline import Pipeline
 
-idx = int(sys.argv[1])
 st = State()
-pending = [d for d in st.data.get('drafts', []) if not d.get('published')]
-d = pending[idx]
+try:
+    d = pending_draft(st.data, sys.argv[1])
+except ValueError:
+    print(json.dumps({'error': 'stale_draft'}))
+    sys.exit(0)
+if d.get('flags') and sys.argv[2] != 'true':
+    print(json.dumps({'error': 'draft_flags'}))
+    sys.exit(0)
 draft = Draft(
     text=d['text'], archetype=d.get('archetype',''), topic=d.get('topic',''),
     product_name=d.get('product_name',''), link=d.get('link',''),
     sub_ids=d.get('sub_ids',[]), score=d.get('score',0),
     flags=d.get('flags',[]), ok=True,
 )
-rec = Pipeline().publish(draft)
-print(json.dumps({'post_id': rec.get('post_id'), 'published_at': rec.get('published_at')}))
+# Use the same State for selection, pipeline effects and final ID-bound mutation.
+pipeline = Pipeline(state=st)
+rec = pipeline.publish(draft)
+d = pending_draft(st.data, sys.argv[1])
+d.update({'published': True, 'post_id': rec.get('post_id'),
+          'published_at': rec.get('published_at')})
+rec['draft_id'] = sys.argv[1]
+st.save()
+print(json.dumps({'draft_id': sys.argv[1], 'post_id': rec.get('post_id'),
+                  'published_at': rec.get('published_at')}))
 """
     try:
         proc = subprocess.run(
-            [PYTHON, "-c", script, str(body.draft_index)],
+            [PYTHON, "-c", script, body.draft_id, str(body.override).lower()],
             capture_output=True, text=True, timeout=120,
             cwd=str(BOT_DIR), env=_bot_env(),
         )
@@ -341,26 +366,26 @@ print(json.dumps({'post_id': rec.get('post_id'), 'published_at': rec.get('publis
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="Publish timed out")
 
-    # mark published in the local ledger
-    draft["published"] = True
-    draft["post_id"] = result.get("post_id")
-    draft["published_at"] = result.get("published_at")
-    state.setdefault("posts", []).append(draft)
-    _save_state(state)
+    if result.get("error") == "stale_draft":
+        raise HTTPException(status_code=409, detail="Unknown or stale draft ID")
+    if result.get("error") == "draft_flags":
+        raise HTTPException(status_code=422, detail="Draft has validation flags")
+    # The child owns the update; never overwrite it with this parent's snapshot.
     return result
 
 
 @router.post("/drafts/reject")
-async def reject_drafts(indices: list[int]):
-    """Mark drafts as published (so they drop out of the queue) without posting."""
-    state = _load_state()
-    pending = [d for d in state.get("drafts", []) if not d.get("published")]
-    for i in indices:
-        if 0 <= i < len(pending):
-            pending[i]["published"] = True
-            pending[i]["rejected"] = True
+async def reject_drafts(ids: list[StrictStr]):
+    """Reject exact pending IDs; validate the entire batch before mutating."""
+    if not ids or len(ids) != len(set(ids)):
+        raise HTTPException(status_code=422, detail="Unique draft IDs are required")
+    state = _draft_state()
+    selected = [_pending(state, identity) for identity in ids]
+    for draft in selected:
+        draft["published"] = True
+        draft["rejected"] = True
     _save_state(state)
-    return {"rejected": len(indices)}
+    return {"rejected": len(selected)}
 
 
 # --------------------------------------------------------------------- report

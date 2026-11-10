@@ -38,7 +38,7 @@ function ScoreBadge({ score, flags }: { score: number; flags?: string[] }) {
 
 export default function AffiliatePage() {
   const qc = useQueryClient();
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const health = useQuery({
     queryKey: ['aff-health'],
@@ -92,8 +92,8 @@ export default function AffiliatePage() {
   });
 
   const publish = useMutation({
-    mutationFn: (args: { index: number; override?: boolean }) =>
-      fetchers.affiliatePublish(args.index, args.override),
+    mutationFn: (args: { id: string; override?: boolean }) =>
+      fetchers.affiliatePublish(args.id, args.override),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aff-drafts'] });
       qc.invalidateQueries({ queryKey: ['aff-report'] });
@@ -102,8 +102,8 @@ export default function AffiliatePage() {
   });
 
   const reject = useMutation({
-    mutationFn: (args: { indices: number[] }) =>
-      fetchers.affiliateReject(args.indices),
+    mutationFn: (args: { ids: string[] }) =>
+      fetchers.affiliateReject(args.ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['aff-drafts'] }),
   });
 
@@ -452,7 +452,7 @@ export default function AffiliatePage() {
           {pending.length > 0 && (
             <button
               onClick={() =>
-                reject.mutate({ indices: pending.map((_: any, i: number) => i) })
+                reject.mutate({ ids: pending.map((d: any) => d.id) })
               }
               disabled={reject.isPending}
               className="flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg border border-[var(--border)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
@@ -466,12 +466,12 @@ export default function AffiliatePage() {
           <div className="text-sm text-[var(--text-secondary)]">Loading…</div>
         ) : pending.length ? (
           <div className="space-y-3">
-            {pending.map((d: any, i: number) => {
-              const isOpen = expanded === i;
+            {pending.map((d: any) => {
+              const isOpen = expanded === d.id;
               const flags: string[] = d.flags ?? [];
               return (
                 <div
-                  key={i}
+                  key={d.id}
                   className="rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] overflow-hidden"
                 >
                   <div className="p-3.5">
@@ -487,7 +487,7 @@ export default function AffiliatePage() {
                       <div className="flex items-center gap-2 shrink-0">
                         <ScoreBadge score={d.score ?? 0} flags={flags} />
                         <button
-                          onClick={() => setExpanded(isOpen ? null : i)}
+                          onClick={() => setExpanded(isOpen ? null : d.id)}
                           className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         >
                           {isOpen ? 'less' : 'more'}
@@ -529,7 +529,7 @@ export default function AffiliatePage() {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() =>
-                          publish.mutate({ index: i, override: flags.length > 0 })
+                          publish.mutate({ id: d.id, override: flags.length > 0 })
                         }
                         disabled={publish.isPending}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-opacity disabled:opacity-50"
@@ -542,7 +542,7 @@ export default function AffiliatePage() {
                         Publish
                       </button>
                       <button
-                        onClick={() => reject.mutate({ indices: [i] })}
+                        onClick={() => reject.mutate({ ids: [d.id] })}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-[var(--border)] hover:bg-[var(--bg-tertiary)] transition-colors"
                       >
                         <X size={12} /> Reject

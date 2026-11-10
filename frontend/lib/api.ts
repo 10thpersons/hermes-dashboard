@@ -116,16 +116,16 @@ export const fetchers = {
       body: JSON.stringify({ count }),
     }),
 
-  affiliatePublish: (draftIndex: number, override = false) =>
+  affiliatePublish: (draftId: string, override = false) =>
     apiFetch('/affiliate/publish', {
       method: 'POST',
-      body: JSON.stringify({ draft_index: draftIndex, override }),
+      body: JSON.stringify({ draft_id: draftId, override }),
     }),
 
-  affiliateReject: (indices: number[]) =>
+  affiliateReject: (ids: string[]) =>
     apiFetch('/affiliate/drafts/reject', {
       method: 'POST',
-      body: JSON.stringify(indices),
+      body: JSON.stringify(ids),
     }),
 
   affiliateReport: () => apiFetch('/affiliate/report'),

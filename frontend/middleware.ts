@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { dashboardKey } from '@/lib/dashboard-key';
 
 const PUBLIC_PATHS = ['/login', '/api/login'];
 
@@ -34,7 +35,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
 
   const session = req.cookies.get('session')?.value;
-  const secret = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
+  const secret = dashboardKey();
+  if (!secret) {
+    return NextResponse.json({ error: 'Authentication is not configured' }, { status: 503 });
+  }
 
   if (!session || !(await verifyToken(session, secret))) {
     const loginUrl = new URL('/login', req.url);

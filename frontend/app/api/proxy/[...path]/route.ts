@@ -2,8 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND = process.env.BACKEND_URL || 'http://backend:8000';
-const API_KEY = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
-const SECRET = API_KEY;
+import { dashboardKey } from '@/lib/dashboard-key';
 
 async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
   const enc = new TextEncoder();
@@ -20,10 +19,10 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
     .join('');
 }
 
-async function verifyToken(token: string): Promise<boolean> {
+async function verifyToken(token: string, secret: string): Promise<boolean> {
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return false;
-  const expected = await hmacSha256Hex(SECRET, payload);
+  const expected = await hmacSha256Hex(secret, payload);
   if (sig !== expected) return false;
   const issuedAt = parseInt(payload, 10);
   const maxAge = 60 * 60 * 24 * 30 * 1000;
@@ -35,9 +34,13 @@ async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  const apiKey = dashboardKey();
+  if (!apiKey) {
+    return NextResponse.json({ error: 'Authentication is not configured' }, { status: 503 });
+  }
   const cookieStore = await cookies();
   const session = cookieStore.get('session')?.value;
-  if (!session || !(await verifyToken(session))) {
+  if (!session || !(await verifyToken(session, apiKey))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -53,7 +56,7 @@ async function handler(
   const upstream = await fetch(url.toString(), {
     method: req.method,
     headers: {
-      'X-API-Key': API_KEY,
+      'X-API-Key': apiKey,
       'Content-Type': 'application/json',
     },
     body,

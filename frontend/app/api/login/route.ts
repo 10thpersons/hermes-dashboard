@@ -1,13 +1,10 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-const SECRET = process.env.DASHBOARD_API_KEY || 'hermes-dashboard-2026';
+import { dashboardKey } from '@/lib/dashboard-key';
+import { createLoginLimiter, loginIdentity } from '@/lib/login-limiter.mjs';
 
-// Simple in-memory rate limiter (resets on server restart)
-const loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
-const MAX_ATTEMPTS = 5;
-const WINDOW_MS = 60 * 1000; // 1 minute
-const LOCKOUT_MS = 30 * 1000; // 30 second lockout
+const limiter = createLoginLimiter();
 
 async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
   const enc = new TextEncoder();
@@ -24,53 +21,19 @@ async function hmacSha256Hex(secret: string, payload: string): Promise<string> {
     .join('');
 }
 
-async function makeToken(): Promise<string> {
+async function makeToken(secret: string): Promise<string> {
   const payload = `${Date.now()}`;
-  const sig = await hmacSha256Hex(SECRET, payload);
+  const sig = await hmacSha256Hex(secret, payload);
   return `${payload}.${sig}`;
 }
 
-function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const record = loginAttempts.get(ip);
-
-  if (record) {
-    // Check if in lockout period
-    if (record.count >= MAX_ATTEMPTS) {
-      const elapsed = now - record.lastAttempt;
-      if (elapsed < LOCKOUT_MS) {
-        return {
-          allowed: false,
-          retryAfter: Math.ceil((LOCKOUT_MS - elapsed) / 1000),
-        };
-      }
-      // Reset after lockout
-      loginAttempts.delete(ip);
-    }
-    // Reset window if expired
-    if (now - record.lastAttempt > WINDOW_MS) {
-      loginAttempts.delete(ip);
-    }
-  }
-  return { allowed: true };
-}
-
-function recordFailedAttempt(ip: string) {
-  const now = Date.now();
-  const record = loginAttempts.get(ip);
-  if (record && now - record.lastAttempt < WINDOW_MS) {
-    record.count++;
-    record.lastAttempt = now;
-  } else {
-    loginAttempts.set(ip, { count: 1, lastAttempt: now });
-  }
-}
-
 export async function POST(req: NextRequest) {
-  const ip =
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-
-  const rateCheck = checkRateLimit(ip);
+  const secret = dashboardKey();
+  if (!secret) {
+    return NextResponse.json({ error: 'Authentication is not configured' }, { status: 503 });
+  }
+  const ip = loginIdentity(req.headers);
+  const rateCheck = limiter.check(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { error: `Too many attempts. Try again in ${rateCheck.retryAfter}s.` },
@@ -78,16 +41,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { password } = await req.json();
-  if (password !== SECRET) {
-    recordFailedAttempt(ip);
+  let password: unknown;
+  try {
+    password = (await req.json())?.password;
+  } catch {
+    limiter.fail(ip);
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+  if (password !== secret) {
+    limiter.fail(ip);
     return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
   }
 
   // Clear rate limit on success
-  loginAttempts.delete(ip);
+  limiter.clear(ip);
 
-  const token = await makeToken();
+  const token = await makeToken(secret);
   const cookieStore = await cookies();
   cookieStore.set('session', token, {
     httpOnly: true,
