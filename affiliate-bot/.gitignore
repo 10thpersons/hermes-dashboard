@@ -1,0 +1,5 @@
+state/
+drafts/
+research/
+.env
+__pycache__/

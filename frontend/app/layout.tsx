@@ -29,7 +29,9 @@ export default function RootLayout({
           <ToastProvider>
             <div className="flex flex-col md:flex-row h-screen overflow-hidden">
               <Sidebar />
-              <main className="flex-1 overflow-y-auto p-6">{children}</main>
+              <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 md:py-8">
+                <div className="mx-auto w-full max-w-[1440px]">{children}</div>
+              </main>
             </div>
           </ToastProvider>
         </QueryProvider>

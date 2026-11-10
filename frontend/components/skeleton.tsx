@@ -21,11 +21,8 @@ export function Skeleton({
 /** Skeleton placeholder for stat cards */
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <Skeleton className="w-9 h-9 rounded-lg" />
-        <Skeleton className="w-20 h-4" />
-      </div>
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] p-4 md:p-5">
+      <Skeleton className="w-20 h-4 mb-3" />
       <Skeleton className="w-24 h-8 mb-2" />
       <Skeleton className="w-32 h-3" />
     </div>
@@ -33,13 +30,22 @@ export function SkeletonCard() {
 }
 
 /** Skeleton placeholder for table rows */
-export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+export function SkeletonTable({
+  rows = 5,
+  cols = 4,
+}: {
+  rows?: number;
+  cols?: number;
+}) {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] overflow-hidden">
       {/* Header */}
       <div className="border-b border-[var(--border)] px-4 py-3 flex gap-4">
         {Array.from({ length: cols }).map((_, i) => (
-          <Skeleton key={i} className="h-4 flex-1" />
+          <Skeleton
+            key={i}
+            className="h-4 flex-1"
+          />
         ))}
       </div>
       {/* Rows */}

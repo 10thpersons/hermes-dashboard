@@ -15,11 +15,13 @@ import {
   X,
   Sun,
   Moon,
+  Megaphone,
 } from 'lucide-react';
 
 const NAV = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/sessions', label: 'Sessions', icon: MessageSquare },
+  { href: '/affiliate', label: 'Affiliate', icon: Megaphone },
   { href: '/knowledge', label: 'Knowledge', icon: BookOpen },
   { href: '/automation', label: 'Automation', icon: Clock },
   { href: '/providers', label: 'Providers', icon: Server },
@@ -34,7 +36,8 @@ function ThemeToggle() {
 
   // Sync from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('hermes-theme') as 'dark' | 'light' | null;
+    const stored = localStorage.getItem('hermes-theme') as
+      'dark' | 'light' | null;
     if (stored) {
       setTheme(stored);
       document.documentElement.setAttribute('data-theme', stored);
@@ -51,8 +54,9 @@ function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
       {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
     </button>
@@ -64,7 +68,10 @@ export function Sidebar() {
   const [open, setOpen] = useState(false);
 
   const navLinks = (
-    <nav className="flex-1 p-3 space-y-1">
+    <nav
+      className="flex-1 overflow-y-auto p-3 space-y-0.5"
+      aria-label="Main"
+    >
       {NAV.map(({ href, label, icon: Icon }) => {
         const active =
           pathname === href || (href !== '/' && pathname.startsWith(href));
@@ -73,13 +80,18 @@ export function Sidebar() {
             key={href}
             href={href}
             onClick={() => setOpen(false)}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+            aria-current={active ? 'page' : undefined}
+            className={`flex h-9 items-center gap-2.5 px-3 rounded-lg text-sm transition-colors ${
               active
-                ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] ring-1 ring-inset ring-[var(--border)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <Icon size={18} />
+            <Icon
+              size={16}
+              strokeWidth={1.5}
+              className="shrink-0"
+            />
             {label}
           </Link>
         );
@@ -90,13 +102,15 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-        <span className="font-mono text-lg font-bold tracking-widest text-[var(--accent)]">
-          HERMES
+      <div className="md:hidden flex h-14 shrink-0 items-center justify-between px-4 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+        <span className="text-base font-medium tracking-tight text-[var(--text-primary)]">
+          Hermes
         </span>
         <button
           onClick={() => setOpen((o) => !o)}
-          className="text-[var(--text-secondary)]"
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-expanded={open}
         >
           {open ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -104,13 +118,17 @@ export function Sidebar() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-56 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col">
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <span className="font-mono text-lg font-bold tracking-widest text-[var(--accent)]">
-                HERMES
+        <div className="md:hidden fixed inset-0 z-50 flex bg-black/50">
+          <div className="w-60 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col">
+            <div className="h-14 px-5 border-b border-[var(--border)] flex items-center justify-between">
+              <span className="text-base font-medium tracking-tight text-[var(--text-primary)]">
+                Hermes
               </span>
-              <button onClick={() => setOpen(false)}>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close menu"
+                className="text-[var(--text-secondary)]"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -118,7 +136,7 @@ export function Sidebar() {
             <div className="p-3 border-t border-[var(--border)]">
               <ThemeToggle />
             </div>
-            <div className="p-4 text-xs text-[var(--text-secondary)] border-t border-[var(--border)]">
+            <div className="px-5 py-3 text-xs text-[var(--text-muted)] border-t border-[var(--border)]">
               v1.0.0
             </div>
           </div>
@@ -130,16 +148,16 @@ export function Sidebar() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-56 shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)] flex-col">
-        <div className="p-5 border-b border-[var(--border)]">
-          <span className="font-mono text-lg font-bold tracking-widest text-[var(--accent)]">
-            HERMES
+      <aside className="hidden md:flex w-60 shrink-0 border-r border-[var(--border)] bg-[var(--bg-secondary)] flex-col">
+        <div className="h-14 px-5 flex items-center border-b border-[var(--border)]">
+          <span className="text-base font-medium tracking-tight text-[var(--text-primary)]">
+            Hermes
           </span>
         </div>
         {navLinks}
         <div className="p-3 border-t border-[var(--border)] flex items-center justify-between">
           <ThemeToggle />
-          <span className="text-xs text-[var(--text-secondary)]">v1.0.0</span>
+          <span className="text-xs text-[var(--text-muted)]">v1.0.0</span>
         </div>
       </aside>
     </>

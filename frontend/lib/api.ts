@@ -96,4 +96,39 @@ export const fetchers = {
   usageByModel: () => apiFetch('/usage/by-model'),
 
   usageCosts: () => apiFetch('/usage/costs'),
+
+  // --- affiliate bot ---
+  affiliateHealth: () => apiFetch('/affiliate/health'),
+
+  affiliateGovernor: () => apiFetch('/affiliate/governor'),
+
+  affiliateTopics: (limit = 25) =>
+    apiFetch('/affiliate/topics', { params: { limit: String(limit) } }),
+
+  affiliateCandidates: (limit = 10) =>
+    apiFetch('/affiliate/candidates', { params: { limit: String(limit) } }),
+
+  affiliateDrafts: () => apiFetch('/affiliate/drafts'),
+
+  affiliateGenerate: (count = 3) =>
+    apiFetch('/affiliate/drafts/generate', {
+      method: 'POST',
+      body: JSON.stringify({ count }),
+    }),
+
+  affiliatePublish: (draftIndex: number, override = false) =>
+    apiFetch('/affiliate/publish', {
+      method: 'POST',
+      body: JSON.stringify({ draft_index: draftIndex, override }),
+    }),
+
+  affiliateReject: (indices: number[]) =>
+    apiFetch('/affiliate/drafts/reject', {
+      method: 'POST',
+      body: JSON.stringify(indices),
+    }),
+
+  affiliateReport: () => apiFetch('/affiliate/report'),
+
+  affiliateResearch: () => apiFetch('/affiliate/research'),
 };
